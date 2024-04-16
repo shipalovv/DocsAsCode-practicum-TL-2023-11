@@ -1,0 +1,288 @@
+swagger: "2.0"
+info:
+  description: "Микросервис работы с Push-устройствами"
+  version: "1.6.0"
+  title: "PushDevice"
+  termsOfService: "http://recredit.ru/api/terms/"
+  contact:
+    url: "https://dit.rencredit.ru/confluence/pages/viewpage.action?pageId=69665811"
+    name: "Команда интеграции"
+    email: "#NeoflexAnalitics@rencredit.ru"
+  license:
+    name: "Собственность КБ Ренессанс Кредит"
+    url: "https://www.rencredit.ru/"
+externalDocs:
+  url: "https://dit.rencredit.ru/confluence/pages/viewpage.action?pageId=69665811"
+  description: "Паспорт(ТЗ) сервиса"
+host: "api.rencredit.ru"
+basePath: "/push_device/v1"
+tags:
+- name: "PushDevice"
+  description: "Устройства с поддержкой технологии Push-сообщений"
+- name: "Message"
+  description: "Сообщения"
+schemes:
+  - "https"
+paths:
+  /devices:
+    get:
+      tags:
+        - "PushDevice"
+      summary: "Поиск активных Push-устройств по кодовому имени приложения и номеру телефона"
+      description: "Возвращает массив объектов активное \"push-устройство\". \n По активным понимается устройству у которого: **\"subscriptionStatus\": true**."
+      operationId: "getDevices"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "phoneNumber"
+          in: "query"
+          required: true
+          pattern: "[0-9]{10}"
+          type: "string"
+          description: "Номер телефона в формате: 9851134099"
+        - name: "applicationCodeName"
+          in: "query"
+          required: true
+          minLength: 1
+          type: "string"
+          description: "Кодовое имя приложения"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/PushDevice"
+        "400":
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Errors"
+          description: "Bad Request"
+        "500":
+          description: "Internal Server Error"
+  /devices/registration/register:
+    post:
+      tags:
+        - "PushDevice"
+      summary: "Регистрация/Перерегистрация, а также подключение/отключение подписки Push-устройства/в в Шлюзе"
+      description: ""
+      operationId: "registerDevice"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "registerDeviceRequest"
+          in: "body"
+          description: "Массив объектов \"push\"-устройств"
+          schema:
+            type: "array"
+            items:
+              $ref: '#/definitions/PushDevice'
+          required: true
+      responses:
+        "200":
+          description: "successful operation"
+        "400":
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Errors"
+          description: "Bad Request"
+        "500":
+          description: "Internal Server Error"
+  /messages:
+    get:
+      tags:
+        - "Message"
+      summary: "Получение истории отправленных Push-сообщений"
+      description: "Возвращает список исходящих сообщений(объектов), отсортированных в порядке увеличения времени создания. По умолчанию возвращает 20 последних отправленных сообщений."
+      operationId: "getMessages"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "phoneNumber"
+          in: "query"
+          required: true
+          type: "string"
+          pattern: "[0-9]{10}"
+          description: "Номер телефона (9851134099)"
+        - name: "deliveryMethod"
+          in: "query"
+          required: false
+          minLength: 1
+          type: "string"
+          enum: [sms, push, im, ussd]
+          description: "Фильтр по способу доставки сообщения. Если параметр не заполнен, извлекаются все сообщения"
+        - name: "deliveryStatus"
+          in: "query"
+          required: false
+          description: "Фильтр по статусу сообщения. Если параметр не указан, извлекаются все сообщения. Например:'provider-delivered'"
+          type: "array"
+          items:
+            minItems: 1
+            minLength: 1
+            type: "string"
+        - name: "offset"
+          in: "query"
+          required: false
+          default: 0
+          type: "integer"
+          format: int32
+          description: "Количество сообщений, которые необходимо пропустить, начиная от наиболее новых. По умолчанию - 0"
+        - name: "limit"
+          in: "query"
+          required: false
+          type: "integer"
+          format: int32
+          default: 20
+          description: "Максимальное количество записей в ответе. По умолчанию - 20 записей"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: '#/definitions/PushMessage'
+        "400":
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Errors"
+          description: "Bad Request"
+        "500":
+          description: "Internal Server Error"
+definitions:
+  # Response: The crutch for the implementation of the synchronous method in REST
+  PushMessage:
+    type: "object"
+    description: "Объект push-сообщение"
+    properties:
+      internalId:
+        type: "string"
+        example: "115"
+        description: "Уникальный идентификатор сообщения в шлюзе"
+      messageId:
+        type: "string"
+        example: "225"
+        description: "Внешний идентификатор сообщения. Может отсутствовать, если был не указан при отправке в шлюз"
+      deliveryMethod:
+        type: "string"
+        example: "push"
+        description: "Способ доставки сообщения (sms, push, im)"
+      deliveryStatus:
+        type: "string"
+        example: "gate-sent"
+        description: "Статус доставки сообщения"
+      source:
+        type: "string"
+        description: "Код системы источника"
+      messageType:
+        type: "string"
+        description: "Код типа сообщения"
+      messageText:
+        type: "string"
+        description: "Текст Push-сообщения"
+      sendingDateTime:
+        type: "string"
+        format: "date-time"
+        example: "2012-12-03T10:15:30.987+03:00"
+        description: "Датавремя отправки Push-сообщения"
+      pushContent:
+        type: "string"
+        description: "Полный текст push сообщения (может отсутствовать, если сообщение не отправлялось как push)"
+      origin:
+        type: "string"
+        description: "Параметр, передаваемый из Шлюза, отвечающий за переход клиента в окно с чатом из истории push-уведомлений"
+      skillId:
+        type: 'integer'
+        description: "Идентификатор навыка в edna Chat Center, на который будет назначаться чат после ответа клиентом в рамках действия таймаута"
+      expiredAt:
+        type: 'string'
+        format: 'date-time'
+        example: "2021-07-30T15:33:31.000+03:00"
+        description: "Время, на протяжении которого действуют правила назначения чата в соответствии с указанными параметрами в файле рассылки"
+      campaign:
+        type: 'string'
+        description: "Название компании, в рамках которой производится рекламная рассылка исходящих сообщений"
+      priority:
+        type: 'integer'
+        description: "Приоритет в очереди распределения относительно других чатов edna Chat Center"
+  PushDevice:
+    type: "object"
+    description: "Объект push-устройство (по факту - приложение установленное на устройстве, включает в себя информацию о: установленном приложении(одно на объект), устройстве (одно на объект), телефон(один на объект), подписку, push-сервере ...)"
+    required:
+      - "phoneNumber"
+      - "deviceName"
+      - "deviceUID"
+      - "deviceAddress"
+      - "applicationCodeName"
+      - "operationSystem"
+    properties:
+      phoneNumber:
+        type: "string"
+        description: "Номер телефона (9851134099)"
+        pattern: "[0-9]{10}"
+      deviceName:
+        type: "string"
+        description: "Отображаемое имя устройства"
+        minLength: 1
+        maxLength: 100
+      deviceUID:
+        type: "string"
+        description: "Уникальный идентификатор устройства"
+        minLength: 1
+      deviceAddress:
+        type: "string"
+        minLength: 1
+        description: "Уникальный адрес экземпляра приложения на устройстве"
+      applicationCodeName:
+        type: "string"
+        minLength: 1
+        description: "Кодовое имя приложения"
+      operationSystem:
+        minLength: 1
+        type: "string"
+        description: "Название операционной системы (и версия, опционально) на мобильном устройстве"
+      pushServer:
+        type: "string"
+        description: "Информация о Push-сервере, на котором зарегистрировано Push-устройство"
+      subscriptionEnable:
+        type: "boolean"
+        description: "true - подписка включена, false - отключена"
+        minLength: 1
+  Errors:
+    type: "array"
+    items:
+      $ref: "#/definitions/Error"
+  Error:
+    type: "object"
+    required:
+    - "code"
+    properties:
+      code:
+        type: "string"
+        description: "Код ошибки"
+      message:
+        type: "string"
+        description: "Описание ошибки"
+      attrErrors:
+        type: "array"
+        items:
+          $ref: "#/definitions/AttrError"
+        description: "Массив вложенных ошибок, связанных с входными атрибутами, например ошибки валидации"
+  AttrError:
+    type: "object"
+    required:
+    - "attr"
+    properties:
+      attr:
+        type: "string"
+        description: "Наименование входного атрибута, на котором произошла ошибка валидации"
+      code:
+        type: "string"
+        description: "Код вложенной ошибки"
+      message:
+        type: "string"
+        description: "Описание ошибки"
