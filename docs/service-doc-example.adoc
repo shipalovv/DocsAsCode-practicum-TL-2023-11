@@ -61,7 +61,7 @@ _TBD_
 _TBD_
 
 === Диаграмма работы метода
-image::sequence.puml[]
+image::docs/diagrams/sequence.puml[]
 
 === Алгоритм работы метода
 . *Формирование и отправка запроса*
